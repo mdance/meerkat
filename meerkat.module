@@ -1,0 +1,101 @@
+<?php
+// $Id$
+
+/**
+ *  @file
+ *  Provides the jquery meerkat plugin functionality.
+ */
+
+function meerkat_create($input, $options = array()) {
+  $output = '';
+  
+  $path = drupal_get_path('module', 'meerkat');
+  drupal_add_js($path . '/js/jquery.meerkat.1.0.js');
+  drupal_add_css($path . '/css/meerkat.css');
+  
+  $defaults = meerkat_defaults();
+
+  $options = array_merge($defaults, $options);
+    
+  $footer = $options['outputfooter'];
+  unset($options['outputfooter']);
+  
+  $json = drupal_to_js($options);
+  
+  $js = <<<EOF
+$(document).ready(function(){
+  meerkat(
+    $json
+  );  
+});  
+EOF;
+
+  drupal_add_js($js, 'inline', 'footer');
+  
+  $output = theme('meerkat', $input, $options);
+
+  if ( !$footer ) {
+    echo $output;
+  }
+  else {
+    meerkat_memory($output);
+  }
+}
+
+function meerkat_defaults() {
+  return array(
+    'showMeerkatOnLoad' => FALSE,
+    'close' => 'none',
+    'dontShow' => 'none',
+    'dontShowExpire' => 0,
+    'removeCookie' => 'none',
+    'meerkatPosition' => 'bottom',
+    'animation' => 'slide',
+    'animationSpeed' => 'slow',
+    'height' => 'auto',
+    'background' => 'none',
+    'outputfooter' => TRUE,
+  );
+}
+
+function meerkat_memory($input = NULL) {
+  static $output = array();
+
+  if ( !is_null($input) ) {  
+    $output[] = $input;
+  }
+  
+  return $output;  
+}
+
+/**
+ * Implementation of hook_footer().
+ */
+function meerkat_footer($main = 0) {
+  $output = '';
+  
+  $memory = meerkat_memory();
+  
+  if ( is_array($memory) ) {
+    foreach ( $memory as $memorybank ) {
+      $output .= $memorybank . "\n";
+    } 
+  }
+  
+  return $output;
+}
+
+/**
+ *  Implement hook_theme().
+ */
+function meerkat_theme($existing, $type, $theme, $path) {
+  return array(
+    'meerkat' =>  array(
+      'arguments' => array(
+        'input' => NULL,
+        'options' => array(),
+      ),
+      'template' => 'meerkat',
+    ),
+  );
+}

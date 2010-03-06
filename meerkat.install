@@ -1,0 +1,30 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_install().
+ */
+function meerkat_install() {
+  drupal_set_message(t('The meerkat module has been installed.'));
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function meerkat_uninstall() {
+  drupal_set_message(t('The meerkat module has been uninstalled.'));
+}
+
+/**
+ * Implementation of hook_enable().
+ */
+function meerkat_enable() {
+  drupal_set_message(t('The meerkat module has been enabled.'));
+}
+
+/**
+ * Implementation of hook_disable().
+ */
+function meerkat_disable() {
+  drupal_set_message(t('The meerkat module has been disabled.'));
+}
