@@ -1,0 +1,56 @@
+<?php
+
+/**
+ * Implementation of hook_schema().
+ */
+function meerkatnode_schema() {
+  $schema['meerkatnode'] = array(
+    'description' => 'Contains meerkat node data',
+    'fields' => array(
+      'id' => array(
+        'description' => 'The primary key',
+        'type' => 'serial',
+      ),
+      'nid' => array(
+        'description' => 'The primary identifier for a node.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'vid' => array(
+        'description' => 'The current {node_revisions}.vid version identifier.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'data' => array(
+        'description' => 'The meerkat node data',
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('id'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implementation of hook_install().
+ */
+function meerkatnode_install() {
+  drupal_install_schema('meerkatnode');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function meerkatnode_uninstall() {
+  drupal_uninstall_schema('meerkatnode');
+
+  $sql = "DELETE FROM {variable} WHERE name LIKE 'meerkatnode_%'";
+
+  db_query($sql);
+}

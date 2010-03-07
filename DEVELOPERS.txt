@@ -1,0 +1,45 @@
+A meerkat container can be outputted directly by calling:
+
+meerkat_create($input, $options = NULL);
+
+The $input parameter should contain the text to be contained in the meerkat container.
+
+The $options can either be:
+
+- An integer ID value for one of the meerkat defaults
+- A string value representing the meerkat defaults name
+- An array containing meerkat defaults
+
+If you would like to pass meerkat_create an options array, the following keys are 
+valid:
+
+$defaults = array(
+  'css' => 'meerkat',
+  'showMeerkatOnLoad' => 'false',
+  'showclose' => 'true',
+  'close' => '.meerkatclose',
+  'showdontshow' => 'false',
+  'dontShow' => '.meerkatdontshow',
+  'dontShowExpire' => 0,
+  'removeCookie' => 'none',
+  'meerkatPosition' => 'bottom',
+  'animation' => 'slide',
+  'animationSpeed' => 'slow',
+  'animationSpeedMilliseconds' => 0,
+  'height' => 'auto',
+  'background' => 'none',
+  'usefooter' => 'true',
+);
+
+Here is a quick overview of the following keys:
+- css: The class value for the meerkat container
+- showclose: Whether to display the close button, 'true' or 'false' 
+- showdontshow: Whether to display the dont show button, 'true' or 'false'
+- animationSpeedMilliseconds: The time in milliseconds for the animation, this 
+will override animationSpeed
+- usefooter: For certain themes (like Garland) the meerkat container must be display 
+in the footer section to display properly. 'true' or 'false'
+
+For an overview of the jquery meerkat parameters, please visit:
+
+http://www.jarodtaylor.com/meerkat/

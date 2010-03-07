@@ -1,0 +1,5 @@
+name = Meerkat Node
+description = Provides the jquery meerkat plugin functionality for nodes.
+package = Meerkat
+core = 6.x
+dependencies[] = meerkat
