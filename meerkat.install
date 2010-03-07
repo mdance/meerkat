@@ -2,9 +2,41 @@
 // $Id$
 
 /**
+ * Implementation of hook_schema().
+ */
+function meerkat_schema() {
+  $schema['meerkat'] = array(
+    'description' => 'Contains meerkat data',
+    'fields' => array(
+      'id' => array(
+        'description' => 'The primary key',
+        'type' => 'serial',
+      ),
+      'name' => array(
+        'description' => 'A name to identify the settings',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'data' => array(
+        'description' => 'The meerkat node data',
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('id'),
+  );
+
+  return $schema;
+}
+
+/**
  * Implementation of hook_install().
  */
 function meerkat_install() {
+  drupal_install_schema('meerkat');
+
   drupal_set_message(t('The meerkat module has been installed.'));
 }
 
@@ -12,6 +44,12 @@ function meerkat_install() {
  * Implementation of hook_uninstall().
  */
 function meerkat_uninstall() {
+  drupal_uninstall_schema('meerkat');
+
+  $sql = "DELETE FROM {variable} WHERE name LIKE 'meerkat_%'";
+
+  db_query($sql);
+
   drupal_set_message(t('The meerkat module has been uninstalled.'));
 }
 

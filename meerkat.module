@@ -6,35 +6,463 @@
  *  Provides the jquery meerkat plugin functionality.
  */
 
-function meerkat_create($input, $options = array()) {
+/**
+ * Implementation of hook_perm().
+ */
+function meerkat_perm() {
+  return array(
+    'administer meerkat',
+  );
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function meerkat_menu() {
+  $items = array();
+
+  $items['admin/settings/meerkat'] = array(
+    'title' => 'Meerkat',
+    'description' => 'Administer meerkat settings.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('meerkat_admin_settings'),
+    'access arguments' => array('administer meerkat'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['admin/settings/meerkat/settings'] = array(
+    'title' => 'Settings',
+    'description' => 'Administer meerkat settings.',
+    'access arguments' => array('administer meerkat'),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+
+  $items['admin/settings/meerkat/defaults'] = array(
+    'title' => 'Defaults',
+    'description' => 'Administer meerkat defaults.',
+    'page callback' => 'meerkat_list',
+    'access arguments' => array('administer meerkat'),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  $items['admin/settings/meerkat/defaults/list'] = array(
+    'title' => 'List',
+    'description' => 'List meerkat defaults.',
+    'access arguments' => array('administer meerkat'),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+
+  $items['admin/settings/meerkat/defaults/add'] = array(
+    'title' => 'Add',
+    'description' => 'Add meerkat defaults.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('meerkat_defaults_form'),
+    'access arguments' => array('administer meerkat'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 0,
+  );
+
+  $items['admin/settings/meerkat/defaults/%meerkat'] = array(
+    'title' => 'Edit Meerkat Defaults',
+    'description' => 'Edit meerkat defaults.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('meerkat_defaults_form', 4),
+    'access arguments' => array('administer meerkat'),
+    'type' => MENU_CALLBACK,
+    'weight' => 0,
+  );
+
+  $items['admin/settings/meerkat/defaults/%meerkat/delete'] = array(
+    'title' => 'Delete Merekat Defaults',
+    'description' => 'Delete meerkat defaults.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('meerkat_defaults_delete_form', 4),
+    'access arguments' => array('administer meerkat'),
+    'type' => MENU_CALLBACK,
+    'weight' => 0,
+  );
+
+  return $items;
+}
+
+/**
+ * Loads meerkat defaults
+ *
+ * This function is called from the menu system.
+ */
+function meerkat_load($input) {
+  $sql = "SELECT * FROM {meerkat} WHERE id = %d";
+
+  $result = db_query($sql, $input);
+
+  if ( $result ) {
+    while ( $row = db_fetch_array($result) ) {
+      $row['data'] = unserialize($row['data']);
+
+      return $row;
+    }
+  }
+}
+
+/**
+ * The admin settings form.
+ */
+function meerkat_admin_settings() {
+  $form['meerkat_usefooter'] = array(
+    '#type' => 'radios',
+    '#title' => t('Use Footer'),
+    '#options' => array(
+      'true' => t('Yes'),
+      'false' => t('No'),
+    ),
+    '#description' => t('For some themes (like Garland), the Meerkat container must be outputted into the footer section in order to display correctly.'),
+    '#default_value' => meerkat_usefooter(),
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Lists meerkat defaults.
+ */
+function meerkat_list() {
+  $sql = "SELECT id, name FROM {meerkat}";
+
+  $result = db_query($sql);
+
+  $rows = array();
+
+  if ( $result ) {
+    while ( $record = db_fetch_array($result) ) {
+      $edit = l(t('Edit'), 'admin/settings/meerkat/defaults/' . $record['id']);
+      $delete = l(t('Delete'), 'admin/settings/meerkat/defaults/' . $record['id'] . '/delete');
+
+      $row = array(
+        l(check_plain($record['name']), 'admin/settings/meerkat/defaults/' . $record['id']),
+        $edit . ' | ' . $delete,
+      );
+
+      $rows[] = $row;
+    }
+  }
+
+  if ( count($rows) == 0 ) {
+    $link = l(t('Please click here to add a new default.'), 'admin/settings/meerkat/defaults/add');
+
+    $output = t('There are no defaults at this time. !link', array('!link' => $link));
+  }
+  else {
+    $headers = array(
+      t('Name'),
+      t('Manage'),
+    );
+
+    $output = theme('table', $headers, $rows);
+  }
+
+  return $output;
+}
+
+/**
+ * Used to add and update defaults.
+ */
+function meerkat_defaults_form(&$form_state, $record = NULL) {
+  if ( is_null($record) ) {
+    $defaults = array();
+  }
+  else {
+    $defaults = array_merge($record, $record['data']);
+    unset($defaults['data']);
+  }
+
+  $defaults = meerkat_defaults($defaults);
+
+  $form['name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Name'),
+    '#description' => t('Please enter a name to describe this defaults configuration.'),
+    '#default_value' => $defaults['name'],
+  );
+
+  $form['css'] = array(
+    '#type' => 'textfield',
+    '#title' => t('CSS Class'),
+    '#description' => t('Please enter a css class to be applied to the meerkat container.  This can be used in your stylesheet to add custom styling for the meerkat display.'),
+    '#default_value' => $defaults['css'],
+  );
+
+  $form['showMeerkatOnLoad'] = array(
+    '#type' => 'radios',
+    '#title' => t('Show Meerkat On Load'),
+    '#description' => t('If set to Yes, the Meerkat container will be displayed when the page loads.'),
+    '#options' => array(
+      'true' => t('Yes'),
+      'false' => t('No'),
+    ),
+    '#default_value' => ( $defaults['showMeerkatOnLoad'] == 'true' ) ? 'true' : 'false',
+  );
+
+  $form['showclose'] = array(
+    '#type' => 'radios',
+    '#title' => t('Show Close Link'),
+    '#description' => t('If set to Yes, the close button will be displayed.'),
+    '#options' => array(
+      'true' => t('Yes'),
+      'false' => t('No'),
+    ),
+    '#default_value' => ( $defaults['showclose'] == 'true' ) ? 'true' : 'false',
+  );
+
+  $form['close'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Close'),
+    '#description' => t('Please enter a valid jquery selector that will close the meerkat container.  If this value is adjusted, the theme template file must be updated.'),
+    '#default_value' => $defaults['close'],
+  );
+
+  $form['showdontshow'] = array(
+    '#type' => 'radios',
+    '#title' => t('Show Dont Show Link'),
+    '#description' => t('If set to Yes, the dont show button will be displayed.'),
+    '#options' => array(
+      'true' => t('Yes'),
+      'false' => t('No'),
+    ),
+    '#default_value' => ( $defaults['showdontshow'] == 'true' ) ? 'true' : 'false',
+  );
+
+  $form['dontShow'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Dont Show'),
+    '#description' => t('Please enter a valid jquery selector that will disable the meerkat from being displayed.  If this value is adjusted, the theme template file must be updated.'),
+    '#default_value' => $defaults['dontShow'],
+  );
+
+  $form['dontShowExpire'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Dont Show Expire'),
+    '#description' => t('If set to 0, meerkat will not show until the browser session has ended.  If set to 0.5, meerkat will not show for 12 hours. If set to 1, meerkat will not show for 24 hours.  If set to 7, meerkat will not show for 7 days.'),
+    '#default_value' => $defaults['dontShowExpire'],
+  );
+
+  $form['meerkatPosition'] = array(
+    '#type' => 'radios',
+    '#title' => t('Position'),
+    '#description' => t('Where should the meerkat container be displayed.'),
+    '#options' => array(
+      'top' => t('Top'),
+      'bottom' => t('Bottom'),
+    ),
+    '#default_value' => $defaults['meerkatPosition'],
+  );
+
+  $form['animation'] = array(
+    '#type' => 'radios',
+    '#title' => t('Animation'),
+    '#description' => t('What type of animation should be used to display the meerkat container.'),
+    '#options' => array(
+      'slide' => t('Slide'),
+      'fade' => t('Fade'),
+    ),
+    '#default_value' => $defaults['animation'],
+  );
+
+  $form['animationSpeed'] = array(
+    '#type' => 'radios',
+    '#title' => t('Animation Speed'),
+    '#description' => t('What speed should the meerkat animation display.  For more control use the Animation Speed Milliseconds.'),
+    '#options' => array(
+      'slow' => t('Slow'),
+      'normal' => t('Normal'),
+      'fast' => t('Fast'),
+    ),
+    '#default_value' => $defaults['animationSpeed'],
+  );
+
+  $form['animationSpeedMilliseconds'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Animation Speed Milliseconds'),
+    '#description' => t('Please enter the milliseconds to run the animation for.'),
+    '#default_value' => $defaults['animationSpeedMilliseconds'],
+  );
+
+  $form['height'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Height'),
+    '#description' => t('Please enter the height for the meerkat container.  The height option accepts all CSS height property values (px, em, %, auto, etc).'),
+    '#default_value' => $defaults['height'],
+  );
+
+  $form['background'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Background'),
+    '#description' => t('Please enter the background for the meerkat container.  The background option accepts CSS background (shorthand) property values.'),
+    '#default_value' => $defaults['background'],
+  );
+
+  $form['id'] = array(
+    '#type' => 'value',
+    '#value' => $defaults['id'],
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+
+  return $form;
+}
+
+function meerkat_defaults_form_submit($form, &$form_state) {
+  $values = $form_state['values'];
+
+  $id = $values['id'];
+  $name = $values['name'];
+
+  unset($values['id'], $values['name'], $values['op'], $values['submit'], $values['form_build_id'], $values['form_token'], $values['form_id']);
+
+  if ( is_null($id) ) {
+    $sql = "INSERT INTO {meerkat}(name, data) VALUES('%s', '%s')";
+
+    db_query($sql, $name, serialize($values));
+
+    drupal_set_message(t('The meerkat defaults have been created.'));
+  }
+  else {
+    $sql = "UPDATE {meerkat} SET name = '%s', data = '%s' WHERE id = %d";
+
+    db_query($sql, $name, serialize($values), $id);
+
+    drupal_set_message(t('The meerkat defaults have been updated.'));
+  }
+
+  $form_state['redirect'] = 'admin/settings/meerkat/defaults';
+}
+
+function meerkat_defaults_delete_form(&$form_state, $record) {
+  $form['info'] = array(
+    '#type' => 'hidden',
+    '#value' => $record['name'],
+  );
+
+  $form['id'] = array(
+    '#type' => 'hidden',
+    '#value' => $record['id'],
+  );
+
+  return confirm_form(
+    $form,
+    t('Are you sure you want to delete the meerkat defaults?'),
+    'admin/settings/meerkat/defaults',
+    t('This operation cannot be undone, clicking the Delete button will remove the meerkat defaults %name permanently.', array('%name' => $record['name'])),
+    t('Delete'),
+    t('Cancel')
+  );
+}
+
+function meerkat_defaults_delete_form_submit($form, &$form_state) {
+  $sql = "DELETE FROM {meerkat} WHERE id = %d";
+
+  db_query($sql, $form_state['values']['id']);
+
+  drupal_set_message(t('The meerkat default %name has been deleted.', array('%name' => $form_state['values']['info'])));
+
+  $form_state['redirect'] = 'admin/settings/meerkat/defaults';
+}
+
+function meerkat_usefooter() {
+  $output = variable_get('meerkat_usefooter', 'true');
+
+  return $output;
+}
+
+/**
+ * Creates a meerkat container.
+ *
+ * @param $input
+ *   A string of content that should be displayed in the meerkat container.
+ * @param $options
+ *   The meerkat defaults to use, can come in several forms:
+ *   - An integer representing the meerkat defaults id
+ *   - A string representing the meerkat defaults name
+ *   - An array of meerkat defaults, see DEVELOPER.TXT for key values.
+ */
+function meerkat_create($input, $options = NULL) {
   $output = '';
-  
+
   $path = drupal_get_path('module', 'meerkat');
   drupal_add_js($path . '/js/jquery.meerkat.1.0.js');
   drupal_add_css($path . '/css/meerkat.css');
-  
-  $defaults = meerkat_defaults();
 
-  $options = array_merge($defaults, $options);
-    
-  $footer = $options['outputfooter'];
-  unset($options['outputfooter']);
-  
-  $json = drupal_to_js($options);
-  
+  $defaults = meerkat_defaults($options);
+
+  $usefooter = $defaults['usefooter'];
+
+  $jsdefaults = $defaults;
+
+  $map = array(
+    'showMeerkatOnLoad' => 'boolean',
+    'close' => 'string',
+    'dontShow' => 'string',
+    'dontShowExpire' => 'float',
+    'removeCookie' => 'string',
+    'meerkatPosition' => 'string',
+    'animation' => 'string',
+    'animationSpeed' => 'string',
+    'height' => 'string',
+    'background' => 'string',
+  );
+
+  if ( is_numeric($jsdefaults['animationSpeedMilliseconds']) && $jsdefaults['animationSpeedMilliseconds'] > 0 ) {
+    $jsdefaults['animationSpeed'] = $jsdefaults['animationSpeedMilliseconds'];
+    $map['animationSpeed'] = 'int';
+  }
+
+  if ( is_array($jsdefaults) ) {
+    foreach ( $jsdefaults as $key => $value ) {
+      if ( !isset($map[$key]) ) {
+        unset($jsdefaults[$key]);
+      }
+      else {
+        switch ( $map[$key] ) {
+          case 'boolean' :
+            if ( $value == 'true' ) {
+              $value = TRUE;
+            }
+            else if ( $value == 'false' ) {
+              $value = FALSE;
+            }
+
+            $jsdefaults[$key] = (boolean)$value;
+            break;
+          case 'int' :
+            $jsdefaults[$key] = (int)$value;
+            break;
+          case 'float' :
+            $jsdefaults[$key] = (float)$value;
+            break;
+        }
+      }
+    }
+  }
+
+  $json = drupal_to_js($jsdefaults);
+
   $js = <<<EOF
 $(document).ready(function(){
   meerkat(
     $json
-  );  
-});  
+  );
+});
 EOF;
 
   drupal_add_js($js, 'inline', 'footer');
-  
-  $output = theme('meerkat', $input, $options);
 
-  if ( !$footer ) {
+  $output = theme('meerkat', $input, $defaults);
+
+  if ( $usefooter == 'false' ) {
     echo $output;
   }
   else {
@@ -42,30 +470,81 @@ EOF;
   }
 }
 
-function meerkat_defaults() {
-  return array(
-    'showMeerkatOnLoad' => FALSE,
-    'close' => 'none',
-    'dontShow' => 'none',
+/**
+ * Retrieves meerkat defaults.
+ *
+ * @param $input
+ *   If null, the system defaults will be returned
+ *   If an integer, the system will try to match a defaults id
+ *   If a string, the system will try to match a defaults name
+ *   If an array, the system will override the system defaults,
+ *   with the passed in array.  See DEVELOPER.TXT for valid keys,
+ *   and values.
+ */
+function meerkat_defaults($input = NULL) {
+  $defaults = array(
+    'name' => t('Defaults'),
+    'css' => 'meerkat',
+    'showMeerkatOnLoad' => 'false',
+    'showclose' => 'true',
+    'close' => '.meerkatclose',
+    'showdontshow' => 'false',
+    'dontShow' => '.meerkatdontshow',
     'dontShowExpire' => 0,
     'removeCookie' => 'none',
     'meerkatPosition' => 'bottom',
     'animation' => 'slide',
     'animationSpeed' => 'slow',
+    'animationSpeedMilliseconds' => 0,
     'height' => 'auto',
     'background' => 'none',
-    'outputfooter' => TRUE,
+    'usefooter' => meerkat_usefooter(),
   );
+
+  if ( !is_null($input) ) {
+    $result = NULL;
+
+    if ( is_numeric($input) ) {
+      $sql = "SELECT data FROM {meerkat} WHERE id = %d";
+
+      $result = db_query($sql, $input);
+    }
+    else if ( is_string($input) ) {
+      $sql = "SELECT data FROM {meerkat} WHERE name = '%s'";
+
+      $result = db_query($sql, $input);
+    }
+    else if ( is_array($input) ) {
+      $defaults = array_merge($defaults, $input);
+    }
+
+    if ( !is_null($result) ) {
+      while ( $row = db_fetch_array($result) ) {
+        $defaults = array_merge($defaults, unserialize($row['data']));
+      }
+    }
+  }
+
+  return $defaults;
 }
 
+/**
+ * Internal function used to store data to be outputted in the footer.
+ *
+ * @param $input
+ *   The data to store.
+ *
+ * @return An array of data that has been stored previously.
+ *
+ */
 function meerkat_memory($input = NULL) {
   static $output = array();
 
-  if ( !is_null($input) ) {  
+  if ( !is_null($input) ) {
     $output[] = $input;
   }
-  
-  return $output;  
+
+  return $output;
 }
 
 /**
@@ -73,15 +552,15 @@ function meerkat_memory($input = NULL) {
  */
 function meerkat_footer($main = 0) {
   $output = '';
-  
+
   $memory = meerkat_memory();
-  
+
   if ( is_array($memory) ) {
     foreach ( $memory as $memorybank ) {
       $output .= $memorybank . "\n";
-    } 
+    }
   }
-  
+
   return $output;
 }
 
@@ -98,4 +577,23 @@ function meerkat_theme($existing, $type, $theme, $path) {
       'template' => 'meerkat',
     ),
   );
+}
+
+/**
+ * Returns a options array of meerkat defaults.
+ */
+function meerkat_defaultsoptions() {
+  $sql = "SELECT id, name FROM {meerkat}";
+
+  $result = db_query($sql);
+
+  $output = array();
+
+  if ( $result ) {
+    while ( $row = db_fetch_array($result) ) {
+      $output[$row['id']] = $row['name'];
+    }
+  }
+
+  return $output;
 }

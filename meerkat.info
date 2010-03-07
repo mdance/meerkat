@@ -1,4 +1,5 @@
 ; $Id$
 name = Meerkat
 description = Provides the jquery meerkat plugin functionality.
+package = Meerkat
 core = 6.x

@@ -1,6 +1,26 @@
-#meerkat {
-  background-color: #365BC3;
+.meerkat {
+  background-color: #101010;
   color: white;
   text-align: center;
   padding: 2em;
+}
+
+.meerkat .meerkatclose {
+  position: absolute;
+  top: 0em;
+  right: 3em;
+  background: transparent url('../images/close.png');
+  width: 42px;
+  height: 42px;
+  text-indent: -9000px;
+}
+
+.meerkat .meerkatdontshow {
+  position: absolute;
+  top: 0em;
+  right: 0em;
+  background: transparent url('../images/dontshow.png');
+  width: 42px;
+  height: 42px;
+  text-indent: -9000px;
 }
